@@ -1,4 +1,4 @@
-use std::str::FromStr as _;
+use std::{path::PathBuf, str::FromStr as _};
 
 use anyhow::format_err;
 use base_db::{FilePosition, FileRange, TextRange, TextSize};
@@ -15,10 +15,8 @@ use crate::{
 };
 
 pub(crate) fn absolute_path(url: &Uri) -> anyhow::Result<AbsPathBuf> {
-    let path = url
-        .to_file_path()
-        .map_err(|()| anyhow::format_err!("url is not a file"))?;
-    Ok(AbsPathBuf::try_from(Utf8PathBuf::from_path_buf(path).unwrap()).unwrap())
+    let path = url.path();
+    Ok(AbsPathBuf::try_from(Utf8PathBuf::from_str(path).unwrap()).unwrap())
 }
 
 pub(crate) fn vfs_path(url: &Uri) -> Result<vfs::VfsPath> {

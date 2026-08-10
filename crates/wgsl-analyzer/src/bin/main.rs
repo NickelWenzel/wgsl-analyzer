@@ -138,7 +138,7 @@ fn run_server() -> anyhow::Result<()> {
     } = from_json::<InitializeParams, _>("InitializeParameters", &initialize_parameters)?;
 
     let root_path = if let Some(path) = root_uri
-        .and_then(|uri| uri.to_file_path().ok())
+        .map(|uri| PathBuf::from_str(uri.path()).unwrap())
         .map(patch_path_prefix)
         .and_then(|path| Utf8PathBuf::from_path_buf(path).ok())
         .and_then(|path| AbsPathBuf::try_from(path).ok())
@@ -166,7 +166,7 @@ fn run_server() -> anyhow::Result<()> {
         .map(|workspaces| {
             workspaces
                 .into_iter()
-                .filter_map(|folder| folder.uri.to_file_path().ok())
+                .map(|folder| PathBuf::from_str(folder.uri.path()).unwrap())
                 .map(patch_path_prefix)
                 .filter_map(|path| Utf8PathBuf::from_path_buf(path).ok())
                 .filter_map(|path| AbsPathBuf::try_from(path).ok())

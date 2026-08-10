@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, str::FromStr};
 
 use base_db::input::PackageOrigin;
 use ide::base_db::input::SourceRoot;
@@ -261,7 +261,9 @@ fn to_file_system_watchers(
             })
             .map(|(base, pat)| FileSystemWatcher {
                 glob_pattern: GlobPattern::RelativePattern(RelativePattern {
-                    base_uri: BaseUri::Uri(lsp_types::Uri::from_file_path(base).unwrap()),
+                    base_uri: BaseUri::Uri(
+                        lsp_types::Uri::from_str(&format!("file://{base}")).unwrap(),
+                    ),
                     pattern: pat.to_owned(),
                 }),
                 kind: None,

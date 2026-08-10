@@ -7,5 +7,8 @@ dist = "run --package xtask --bin xtask -- dist"
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld"
 
+[target.wasm32-unknown-emscripten]
+rustflags = ["-Clink-arg=-sDEFAULT_TO_CXX"]
+
 [env]
 CARGO_WORKSPACE_DIR = { value = "", relative = true }

@@ -1,4 +1,4 @@
-use std::ops::Not as _;
+use std::{ops::Not as _, str::FromStr};
 
 use base_db::{FileRange, TextRange, TextSize};
 use ide::{
@@ -104,7 +104,7 @@ pub(crate) fn folding_range(
 ///
 /// When processing non-windows path, this is essentially the same as [`Uri::from_file_path`].
 pub(crate) fn url_from_abs_path(path: &AbsPath) -> lsp_types::Uri {
-    let url = lsp_types::Uri::from_file_path(path).unwrap();
+    let url = lsp_types::Uri::from_str(&format!("file://{path}")).unwrap();
     match path.components().next() {
         Some(Utf8Component::Prefix(prefix))
             if matches!(

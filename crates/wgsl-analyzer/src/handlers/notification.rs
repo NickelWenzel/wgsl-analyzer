@@ -231,12 +231,8 @@ pub(crate) fn handle_did_change_workspace_folders(
     let config = Arc::make_mut(&mut state.config);
 
     for workspace in parameters.event.removed {
-        let Ok(path) = workspace.uri.to_file_path() else {
-            continue;
-        };
-        let Ok(path) = Utf8PathBuf::from_path_buf(path) else {
-            continue;
-        };
+        let path = workspace.uri.path();
+        let Ok(path) = Utf8PathBuf::from_str(path);
         let Ok(path) = AbsPathBuf::try_from(path) else {
             continue;
         };
@@ -247,8 +243,7 @@ pub(crate) fn handle_did_change_workspace_folders(
         .event
         .added
         .into_iter()
-        .filter_map(|folder| folder.uri.to_file_path().ok())
-        .filter_map(|folder| Utf8PathBuf::from_path_buf(folder).ok())
+        .map(|folder| Utf8PathBuf::from_str(folder.uri.path()).unwrap())
         .filter_map(|folder| AbsPathBuf::try_from(folder).ok())
         .collect();
     config.add_workspaces(added.iter().cloned());
