@@ -16,6 +16,11 @@ autobins = false
 name = "wgsl-analyzer"
 path = "src/bin/main.rs"
 
+[[bin]]
+name = "wgsl-analyzer-js"
+path = "src/bin-js/main.rs"
+required-features = ["bin-js"]
+
 # tombi: format.rules.table-keys-order.disabled = true
 [dependencies]
 anyhow.workspace = true
@@ -89,6 +94,8 @@ windows-sys = {
 [features]
 force-always-assert = ["stdx/force-always-assert"]
 sysroot-abi = []
+# This feature prevents building bin-js which only is used for emscripten builds by default
+bin-js = []
 
 [lints]
 workspace = true
