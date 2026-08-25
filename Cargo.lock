@@ -1848,6 +1848,7 @@ dependencies = [
  "crossbeam-channel",
  "dissimilar",
  "edition",
+ "emscripten-stdio",
  "expect-test",
  "gen-lsp-types",
  "hir",
