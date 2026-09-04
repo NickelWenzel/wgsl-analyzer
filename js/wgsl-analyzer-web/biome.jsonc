@@ -1,0 +1,40 @@
+{
+	"javascript": {
+		"formatter": {
+			"operatorLinebreak": "before"
+		}
+	},
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	},
+	"files": {
+		"includes": ["**", "!**/dist", "!**/node_modules", "!**/public"]
+	},
+	"formatter": {
+		"indentStyle": "tab",
+		"lineWidth": 100
+	},
+	"linter": {
+		"enabled": true
+	},
+	"overrides": [
+		{
+			"includes": ["scripts/**", "tests/**"],
+			"linter": {
+				"rules": {
+					"complexity": {
+						// Contradicts `noPropertyAccessFromIndexSignature`, which
+						// @tsconfig/strictest turns on: TypeScript requires the bracket
+						// form for index signatures such as `process.env`, and this rule
+						// wants the dotted one back.
+						"useLiteralKeys": "off"
+					}
+				}
+			}
+		}
+	]
+}

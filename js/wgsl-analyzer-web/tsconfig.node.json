@@ -1,0 +1,17 @@
+{
+	"extends": "@tsconfig/strictest/tsconfig.json",
+	"compilerOptions": {
+		"target": "es2024",
+		// ES2024 for Atomics.waitAsync and Promise.withResolvers, both of which
+		// the smoke test's stdout pump uses.
+		"lib": ["ES2024"],
+		"module": "esnext",
+		"moduleResolution": "bundler",
+		"types": ["node"],
+		"noEmit": true,
+		"erasableSyntaxOnly": true,
+		"verbatimModuleSyntax": true,
+		"skipLibCheck": true
+	},
+	"include": ["scripts", "tests"]
+}
