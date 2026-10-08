@@ -54,10 +54,15 @@
 		"format": "pnpm exec biome format --write",
 		"fix": "pnpm exec biome format --write && pnpm exec biome check --write",
 		"lint": "pnpm exec biome lint",
-		"package": "pnpm run build-base --minify && vsce package --no-dependencies -o wgsl-analyzer.vsix",
+		"build-web-base": "esbuild ./src/browser/main.ts --bundle --outfile=out/browser.js --external:vscode --format=cjs --platform=browser --target=es2024 --log-override:empty-import-meta=silent",
+		"build-web": "pnpm run build-web-base --sourcemap && pnpm run copy-wasm",
+		"copy-wasm": "node -e \"const fs=require('node:fs');fs.mkdirSync('out/wasm',{recursive:true});for(const f of ['worker.js','wgsl_analyzer.js','wgsl_analyzer.wasm'])fs.copyFileSync('node_modules/wgsl-analyzer-web/dist/assets/'+f,'out/wasm/'+f)\"",
+		"package": "pnpm run build-base --minify && pnpm run build-web-base --minify && vsce package --no-dependencies -o wgsl-analyzer.vsix",
+		"package:web": "pnpm run build-base --minify && pnpm run build-web-base --minify && pnpm run copy-wasm && vsce package --target web --ignoreFile .vscodeignore.web --no-dependencies -o wgsl-analyzer-web.vsix",
+		"run-in-browser": "vscode-test-web --browser=none --coi --extensionDevelopmentPath=. ../../crates/wgsl-analyzer/src/tests/simple_wesl",
 		"pretest": "pnpm run typecheck && pnpm run build",
 		"test": "node ./out/tests/runTests.js",
-		"typecheck": "tsc",
+		"typecheck": "tsc && tsc -p src/browser",
 		"watch": "pnpm run build-base --sourcemap --watch"
 	},
 	"dependencies": {
@@ -78,13 +83,16 @@
 		"@types/node": "^25.9.8",
 		"@types/vscode": "^1.125.0",
 		"@vscode/test-electron": "^3.1.0",
+		"@vscode/test-web": "^0.0.81",
 		"@vscode/vsce": "^4.0.0",
 		"esbuild": "^0.28.2",
 		"ovsx": "^1.2.0",
 		"tslib": "^2.8.1",
-		"typescript": "^7.0.2"
+		"typescript": "^7.0.2",
+		"wgsl-analyzer-web": "link:../../js/wgsl-analyzer-web"
 	},
 	"main": "./out/main.js",
+	"browser": "./out/browser.js",
 	"activationEvents": [
 		"workspaceContains:*/*.wgsl",
 		"workspaceContains:*/*.wesl",

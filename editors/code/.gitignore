@@ -5,3 +5,4 @@ server
 *.vsix
 bundle
 vscode.proposed.d.ts
+.vscode-test-web/

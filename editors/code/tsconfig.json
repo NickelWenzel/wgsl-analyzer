@@ -25,6 +25,6 @@
 		"noEmit": false,
 		"types": ["@types/node"]
 	},
-	"exclude": ["node_modules", ".vscode-test", "out"],
+	"exclude": ["node_modules", ".vscode-test", "out", "src/browser"],
 	"include": ["*.config.ts", "*.config.mts", "tests/**/*.ts", "src/**/*.ts"]
 }
