@@ -56,6 +56,7 @@ jobs:
           filters: |
             typescript:
               - 'editors/code/**'
+              - 'js/wgsl-analyzer-web/src/**'
             javascript:
               - 'js/**'
             # Subdirectories rather than 'js/wgsl-analyzer-web/**', so a README
@@ -375,8 +376,15 @@ jobs:
           path: |
             ~/.local/share/pnpm/store
             ~/AppData/Local/pnpm/store
-          key: pnpm-${{ runner.os }}-${{ hashFiles('editors/code/pnpm-lock.yaml') }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('editors/code/pnpm-lock.yaml', 'js/pnpm-lock.yaml') }}
           restore-keys: pnpm-${{ runner.os }}-
+
+      # The web extension bundles wgsl-analyzer-web, which ships its types in dist/.
+      - name: Build wgsl-analyzer-web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter wgsl-analyzer-web run build:lib
+        working-directory: ./js
 
       - name: Install xvfb
         if: matrix.os == 'ubuntu-latest'

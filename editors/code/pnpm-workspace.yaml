@@ -2,3 +2,5 @@ allowBuilds:
   '@vscode/vsce-sign': true
   esbuild: true
   keytar: true
+  # Downloads a browser on install; run-in-browser opens the user's browser instead.
+  '@playwright/browser-chromium': false

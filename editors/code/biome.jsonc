@@ -1,6 +1,6 @@
 {
 	"extends": "//",
 	"files": {
-		"includes": ["**", "!**/out", "!**/.vscode-test", "!**/node_modules"]
+		"includes": ["**", "!**/out", "!**/.vscode-test", "!**/.vscode-test-web", "!**/node_modules"]
 	}
 }
