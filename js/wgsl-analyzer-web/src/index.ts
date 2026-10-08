@@ -25,6 +25,12 @@ export interface StartOptions {
 	readonly onStderr?: (line: string) => void;
 	/** Called if `main()` returns. */
 	readonly onExit?: (code: number) => void;
+	/**
+	 * A worker running `assets/worker.js`, for hosts that cannot use the default
+	 * module worker created next to this module. The server terminates it on
+	 * {@link WgslAnalyzerServer.dispose}.
+	 */
+	readonly worker?: Worker;
 }
 
 export interface Disposable {
@@ -57,8 +63,10 @@ export class WgslAnalyzerServer {
 	static async start(options: StartOptions): Promise<WgslAnalyzerServer> {
 		const root = options.root ?? "/workspace";
 
-		// Bundlers only detect the worker when this expression appears literally.
-		const worker = new Worker(new URL("./assets/worker.js", import.meta.url), { type: "module" });
+		const worker =
+			options.worker
+			// Bundlers only detect the worker when this expression appears literally.
+			?? new Worker(new URL("./assets/worker.js", import.meta.url), { type: "module" });
 		const server = new WgslAnalyzerServer(worker, root);
 
 		await new Promise<void>((resolve, reject) => {

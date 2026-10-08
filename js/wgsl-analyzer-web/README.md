@@ -78,6 +78,11 @@ export default defineConfig({
 });
 ```
 
+Hosts without `import.meta.url`, or whose `Worker` cannot start module workers,
+create a worker that imports `assets/worker.js` themselves and pass it as
+`StartOptions.worker`. The VS Code extension does this in
+[`editors/code/src/browser/server.ts`](../../editors/code/src/browser/server.ts).
+
 ## Requirements
 
 **A cross-origin isolated page.** The build uses shared memory since the language server relies on
