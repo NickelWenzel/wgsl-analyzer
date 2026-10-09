@@ -2,10 +2,10 @@ import { exec } from "node:child_process";
 import * as os from "node:os";
 import * as vscode from "vscode";
 
-import type { Config } from "./config";
-import { spawnAsync } from "./node/process";
-import type { PersistentState } from "./persistent_state";
-import { type Env, log } from "./utilities";
+import type { Config } from "../config";
+import type { PersistentState } from "../persistent_state";
+import { type Env, log } from "../utilities";
+import { spawnAsync } from "./process";
 
 export async function bootstrap(
 	context: vscode.ExtensionContext,

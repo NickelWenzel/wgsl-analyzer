@@ -1,17 +1,17 @@
 import * as assert from "node:assert";
 import * as vscode from "vscode";
-import * as lc from "vscode-languageclient/node";
+import * as lc from "vscode-languageclient";
 import * as commands from "./commands";
 import { type CommandFactory, Context, fetchWorkspace } from "./context";
 import * as diagnostics from "./diagnostics";
-import { nodePlatformEnv } from "./node/platform";
+import { nodePlatform } from "./node/platform";
 import { log, setContextValue } from "./utilities";
 
 const WESL_PROJECT_CONTEXT_NAME = "inWeslProject";
 
 export interface WgslAnalyzerExtensionApi {
 	// FIXME: this should be non-optional
-	readonly client?: lc.LanguageClient;
+	readonly client?: lc.BaseLanguageClient;
 }
 
 export async function deactivate() {
@@ -23,7 +23,7 @@ export async function activate(
 ): Promise<WgslAnalyzerExtensionApi> {
 	checkConflictingExtensions();
 
-	const ctx = new Context(context, createCommands(), fetchWorkspace(), nodePlatformEnv);
+	const ctx = new Context(context, createCommands(), fetchWorkspace(nodePlatform), nodePlatform);
 
 	// VS Code does not show a notification when an extension fails to activate
 	// so we do it ourselves.

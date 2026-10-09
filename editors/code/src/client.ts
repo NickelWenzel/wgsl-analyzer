@@ -1,23 +1,29 @@
-import { sep as pathSeparator } from "node:path"; // spellchecker:disable-line
 import anser from "anser";
 import * as vscode from "vscode";
 import { WorkspaceEdit } from "vscode";
-import * as lc from "vscode-languageclient/node";
+import * as lc from "vscode-languageclient";
 import { type Config, prepareVSCodeConfig } from "./config";
 import * as diagnostics from "./diagnostics";
 import * as Is from "./is";
-import { WaLanguageClient } from "./lang_client";
 import * as wa from "./lsp_ext";
 import { assert } from "./utilities";
 
+/** Constructs the platform's language client around the shared options. */
+export type ClientFactory = (
+	id: string,
+	name: string,
+	options: lc.LanguageClientOptions,
+) => lc.BaseLanguageClient;
+
 export function createClient(
+	clientFactory: ClientFactory,
 	traceOutputChannel: vscode.LogOutputChannel,
 	outputChannel: vscode.LogOutputChannel,
 	initializationOptions: vscode.WorkspaceConfiguration,
-	serverOptions: lc.ServerOptions,
 	config: Config,
 	unlinkedFiles: vscode.Uri[],
-): lc.LanguageClient {
+): lc.BaseLanguageClient {
+	const { pathSeparator } = config.platform;
 	const waMiddleware: lc.Middleware = {
 		workspace: {
 			// HACK: This is a workaround, when the client has been disposed, VSCode
@@ -268,12 +274,7 @@ export function createClient(
 		},
 	};
 
-	const client = new WaLanguageClient(
-		"wgsl-analyzer",
-		"wgsl-analyzer Language Server",
-		serverOptions,
-		clientOptions,
-	);
+	const client = clientFactory("wgsl-analyzer", "wgsl-analyzer Language Server", clientOptions);
 
 	// To turn on all proposed features use: client.registerProposedFeatures();
 	client.registerFeature(new ExperimentalFeatures(config));
