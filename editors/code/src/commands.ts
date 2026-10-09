@@ -327,12 +327,13 @@ export function ssr(context: InitializedContext): Cmd {
 
 export function serverVersion(context: InitializedContext): Cmd {
 	return () => {
-		if (!context.serverPath) {
+		if (!context.client.isRunning()) {
 			void vscode.window.showWarningMessage(`wgsl-analyzer server is not running`);
 			return;
 		}
+		const location = context.serverPath === undefined ? "" : ` [${context.serverPath}]`;
 		void vscode.window.showInformationMessage(
-			`wgsl-analyzer version: ${context.serverVersion} [${context.serverPath}]`,
+			`wgsl-analyzer version: ${context.serverVersion}${location}`,
 		);
 	};
 }

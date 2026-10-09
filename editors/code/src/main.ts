@@ -3,7 +3,7 @@ import * as lc from "vscode-languageclient";
 import * as commands from "./commands";
 import { type CommandFactory, Context, fetchWorkspace, type Platform } from "./context";
 import * as diagnostics from "./diagnostics";
-import { log, setContextValue } from "./utilities";
+import { log, setContextValue, setServedUris } from "./utilities";
 
 const WESL_PROJECT_CONTEXT_NAME = "inWeslProject";
 
@@ -21,6 +21,7 @@ export async function activateWith(
 	platform: Platform,
 ): Promise<WgslAnalyzerExtensionApi> {
 	checkConflictingExtensions();
+	setServedUris(platform.servesUri);
 
 	const ctx = new Context(context, createCommands(), fetchWorkspace(platform), platform);
 
