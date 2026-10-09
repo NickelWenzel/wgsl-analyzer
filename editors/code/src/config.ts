@@ -1,5 +1,3 @@
-import * as os from "node:os";
-import * as path from "node:path";
 import type { Disposable } from "vscode";
 import * as vscode from "vscode";
 import * as Is from "./is";
@@ -26,6 +24,17 @@ export type ConfigurationValue =
 
 type ShowStatusBar = "always" | "never" | { documentSelector: vscode.DocumentSelector };
 
+/** What substituting `${...}` variables in settings reads from the host. */
+export interface PlatformEnv {
+	readonly env: (name: string) => string | undefined;
+	readonly homedir: () => string;
+	readonly cwd: () => string;
+	readonly execPath: () => string;
+	readonly pathSeparator: string;
+	/** The path `${workspaceFolder}` stands for. */
+	readonly workspaceFolder: (folder: vscode.Uri) => string;
+}
+
 export class Config {
 	readonly extensionId = "wgsl-analyzer.wgsl-analyzer";
 	configureLang: vscode.Disposable | undefined;
@@ -36,7 +45,10 @@ export class Config {
 		(opt) => `${this.rootSection}.${opt}`,
 	);
 
-	constructor(disposables: Disposable[]) {
+	constructor(
+		disposables: Disposable[],
+		readonly platform: PlatformEnv,
+	) {
 		vscode.workspace.onDidChangeConfiguration(this.onDidChangeConfiguration, this, disposables);
 		this.refreshLogging();
 		this.configureLanguage();
@@ -205,7 +217,7 @@ export class Config {
 	 * So this getter handles this quirk by not requiring the caller to use postfix `!`
 	 */
 	private get<T>(path: string): T | undefined {
-		return prepareVSCodeConfig(this.cfg.get<T>(path));
+		return prepareVSCodeConfig(this.cfg.get<T>(path), this.platform);
 	}
 
 	get serverPath() {
@@ -218,6 +230,7 @@ export class Config {
 			Object.fromEntries(
 				Object.entries(extraEnv).map(([k, v]) => [k, typeof v !== "string" ? v.toString() : v]),
 			),
+			this.platform,
 		);
 	}
 
@@ -324,20 +337,20 @@ export class Config {
 	}
 }
 
-export function prepareVSCodeConfig<T>(response: T): T {
+export function prepareVSCodeConfig<T>(response: T, platform: PlatformEnv): T {
 	if (Is.string(response)) {
-		return substituteVSCodeVariableInString(response) as T;
+		return substituteVSCodeVariableInString(response, platform) as T;
 		// biome-ignore lint/suspicious/noExplicitAny: Signature comes from upstream
 	} else if (response && Is.array<any>(response)) {
 		return response.map((value) => {
-			return prepareVSCodeConfig(value);
+			return prepareVSCodeConfig(value, platform);
 		}) as T;
 	} else if (response && typeof response === "object") {
 		// biome-ignore lint/suspicious/noExplicitAny: Signature comes from upstream
 		const result: { [key: string]: any } = {};
 		for (const key in response) {
 			const value = response[key];
-			result[key] = prepareVSCodeConfig(value);
+			result[key] = prepareVSCodeConfig(value, platform);
 		}
 		return result as T;
 	}
@@ -345,7 +358,7 @@ export function prepareVSCodeConfig<T>(response: T): T {
 }
 
 // FIXME: Merge this with `substituteVSCodeVariables` above
-export function substituteVariablesInEnv(env: Env): Env {
+export function substituteVariablesInEnv(env: Env, platform: PlatformEnv): Env {
 	const missingDeps = new Set<string>();
 	// vscode uses `env:ENV_NAME` for env vars resolution, and it is easier
 	// to follow the same convention for our dependency tracking
@@ -378,7 +391,7 @@ export function substituteVariablesInEnv(env: Env): Env {
 			if (prefix === "env") {
 				const envName = unwrapUndefinable(body);
 				envWithDeps[dep] = {
-					value: process.env[envName] ?? "",
+					value: platform.env(envName) ?? "",
 					dependencies: [],
 				};
 				resolved.add(dep);
@@ -393,7 +406,7 @@ export function substituteVariablesInEnv(env: Env): Env {
 			}
 		} else {
 			envWithDeps[dep] = {
-				value: computeVscodeVar(dep) || `\${${dep}}`,
+				value: computeVscodeVar(dep, platform) || `\${${dep}}`,
 				dependencies: [],
 			};
 		}
@@ -426,17 +439,17 @@ export function substituteVariablesInEnv(env: Env): Env {
 
 const VarRegex = new RegExp(/\$\{(.+?)\}/g);
 
-function substituteVSCodeVariableInString(value: string): string {
+function substituteVSCodeVariableInString(value: string, platform: PlatformEnv): string {
 	return value.replace(VarRegex, (substring: string, varName) => {
 		if (Is.string(varName)) {
-			return computeVscodeVar(varName) || substring;
+			return computeVscodeVar(varName, platform) || substring;
 		} else {
 			return substring;
 		}
 	});
 }
 
-function computeVscodeVar(varName: string): string | null {
+function computeVscodeVar(varName: string, platform: PlatformEnv): string | null {
 	const workspaceFolder = () => {
 		const folders = vscode.workspace.workspaceFolders ?? [];
 		const folder = folders[0];
@@ -449,7 +462,7 @@ function computeVscodeVar(varName: string): string | null {
 					// user has opened on Editor startup. Could lead to
 					// unpredictable workspace selection in practice.
 					// It is better to pick the first one
-					folder.uri.fsPath;
+					platform.workspaceFolder(folder.uri);
 		return fsPath;
 	};
 	// https://code.visualstudio.com/docs/editor/variables-reference
@@ -457,19 +470,13 @@ function computeVscodeVar(varName: string): string | null {
 		workspaceFolder,
 
 		workspaceFolderBasename: () => {
-			return path.basename(workspaceFolder());
+			return workspaceFolder().split(/[\\/]/).at(-1) ?? "";
 		},
 
-		cwd: () => process.cwd(),
-		userHome: () => os.homedir(),
-
-		// see
-		// https://github.com/microsoft/vscode/blob/08ac1bb67ca2459496b272d8f4a908757f24f56f/src/vs/workbench/api/common/extHostVariableResolverService.ts#L81
-		// or
-		// https://github.com/microsoft/vscode/blob/29eb316bb9f154b7870eb5204ec7f2e7cf649bec/src/vs/server/node/remoteTerminalChannel.ts#L56
-		execPath: () => process.env["VSCODE_EXEC_PATH"] ?? process.execPath,
-
-		pathSeparator: () => path.sep, // spellchecker:disable-line
+		cwd: platform.cwd,
+		userHome: platform.homedir,
+		execPath: platform.execPath,
+		pathSeparator: () => platform.pathSeparator, // spellchecker:disable-line
 	};
 
 	if (varName in supportedVariables) {

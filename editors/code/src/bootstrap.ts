@@ -3,9 +3,9 @@ import * as os from "node:os";
 import * as vscode from "vscode";
 
 import type { Config } from "./config";
+import { spawnAsync } from "./node/process";
 import type { PersistentState } from "./persistent_state";
-
-import { type Env, log, spawnAsync } from "./utilities";
+import { type Env, log } from "./utilities";
 
 export async function bootstrap(
 	context: vscode.ExtensionContext,
