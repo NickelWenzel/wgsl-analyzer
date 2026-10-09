@@ -576,6 +576,12 @@ jobs:
         run: pnpm --filter wgsl-analyzer-codemirror-example run build
         working-directory: ./js
 
+      - name: Package the web extension
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run package:web
+        working-directory: ./editors/code
+
   conclusion:
     needs:
       [

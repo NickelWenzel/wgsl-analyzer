@@ -38,6 +38,14 @@ impl DistWeb {
     ) -> anyhow::Result<()> {
         check_requirements(shell)?;
 
+        let web_version = self
+            .client_patch_version
+            .as_ref()
+            .map(|patch_version| dist::web_version(shell, patch_version));
+        let _release = web_version
+            .as_ref()
+            .map(|version| shell.push_env("CFG_RELEASE", format!("{version}-web")));
+
         // A host needs three files out of `dist/assets`: the cargo build
         // supplies `wgsl_analyzer.{js,wasm}`, the package build `worker.js`.
         build_wasm(shell, self.release)?;
@@ -45,11 +53,15 @@ impl DistWeb {
         // Staging comes last because `build:lib` clears `dist` first.
         let assets = stage_artifacts(shell, self.release)?;
 
-        if let Some(patch_version) = &self.client_patch_version {
-            let version = dist::web_version(shell, patch_version);
+        if let (Some(patch_version), Some(version)) = (&self.client_patch_version, &web_version) {
             let mut patch = Patch::new(shell, Path::new(PACKAGE_ROOT).join("package.json"))?;
-            dist::patch_version(&mut patch, &version).commit(shell)?;
+            dist::patch_version(&mut patch, version).commit(shell)?;
             println!("dist-web: stamped version {version}");
+
+            // For `pnpm run package:web` in `editors/code`, which bundles these assets.
+            let client_version = dist::client_version(shell, patch_version);
+            dist::patch_client_manifest(shell, &client_version, &dist::release_tag(shell)?)?;
+            println!("dist-web: stamped the VS Code extension with version {client_version}");
         }
 
         println!("dist-web: staged the web package in {}", assets.display());
