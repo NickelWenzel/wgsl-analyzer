@@ -24,6 +24,14 @@ It comes bundled with a language server of the same name: [wgsl-analyzer](https:
 
 Simply install the [wgsl-analyzer extension](https://marketplace.visualstudio.com/items?itemName=rust-lang.wgsl-analyzer).
 
+## VS Code for the Web
+
+On [vscode.dev](https://vscode.dev) and [github.dev](https://github.dev), the extension runs the language server as WebAssembly in the browser. Three things differ from the desktop:
+
+- The server uses shared memory, so the page has to be cross-origin isolated. Add `?vscode-coi=` to the URL, for example `https://vscode.dev/github/<owner>/<repo>?vscode-coi=`.
+- The extension is disabled until you trust the workspace.
+- The server sees only the first workspace folder. Settings that point at programs, like `wgsl-analyzer.server.path`, have no effect.
+
 ## Configuration
 
 This extension provides configurations through VS Code's configuration settings (`settings.json`). All configurations are under `wgsl-analyzer.*`.

@@ -68,8 +68,6 @@ impl flags::Dist {
         self,
         shell: &Shell,
     ) -> anyhow::Result<()> {
-        let stable = is_stable(shell);
-
         let project_root = project_root();
         let target = Target::get(&project_root, shell);
         let allocator = self.allocator();
@@ -86,12 +84,7 @@ impl flags::Dist {
                 allocator,
                 self.pgo,
             )?;
-            let release_tag = if stable {
-                date_iso(shell)?
-            } else {
-                "nightly".to_owned()
-            };
-            dist_client(shell, &version, &release_tag, &target)?;
+            dist_client(shell, &version, &release_tag(shell)?, &target)?;
         } else {
             dist_server(shell, "0.0.0-standalone", &target, allocator, self.pgo)?;
         }
@@ -112,6 +105,24 @@ fn dist_client(
         shell.copy_file(symbols_path, &bundle_path)?;
     }
 
+    patch_client_manifest(shell, version, release_tag)
+}
+
+/// The `releaseTag` that a client built by this run carries.
+pub(crate) fn release_tag(shell: &Shell) -> anyhow::Result<String> {
+    if is_stable(shell) {
+        date_iso(shell)
+    } else {
+        Ok("nightly".to_owned())
+    }
+}
+
+/// Stamps a release into the VS Code extension's `package.json`.
+pub(crate) fn patch_client_manifest(
+    shell: &Shell,
+    version: &str,
+    release_tag: &str,
+) -> anyhow::Result<()> {
     let _d = shell.push_dir("./editors/code");
 
     let mut patch = Patch::new(shell, "./package.json")?;

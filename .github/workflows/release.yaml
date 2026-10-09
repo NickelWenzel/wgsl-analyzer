@@ -138,8 +138,13 @@ jobs:
         run: pnpm run package -o "../../dist/wgsl-analyzer-${{ matrix.code-target }}.vsix" --target ${{ matrix.code-target }} --pre-release
         working-directory: editors/code
 
+      # The universal vsix has no wasm, so it must not claim to run on the web:
+      # vscode.dev falls back to it for any version without a web vsix.
       - if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: rm -rf editors/code/server
+        run: |
+          rm -rf server
+          pnpm pkg delete browser
+        working-directory: editors/code
 
       - if: matrix.target == 'x86_64-unknown-linux-gnu' && github.ref == 'refs/heads/release'
         run: pnpm run package -o ../../dist/wgsl-analyzer-no-server.vsix
@@ -289,6 +294,21 @@ jobs:
           for file in dist/index.js dist/assets/wgsl_analyzer.js dist/assets/wgsl_analyzer.wasm LICENSE-APACHE LICENSE-MIT; do
             grep -qxF "package/$file" <<< "$contents" || { echo "::error::tarball is missing $file"; exit 1; }
           done
+
+      # The web extension bundles the assets that dist-web staged, and dist-web
+      # stamped its version.
+      - run: pnpm install --frozen-lockfile
+        working-directory: ./editors/code
+
+      - name: Package the web extension (release)
+        if: github.ref == 'refs/heads/release'
+        run: pnpm run package:web -o ../../dist/wgsl-analyzer-web.vsix
+        working-directory: ./editors/code
+
+      - name: Package the web extension (nightly)
+        if: github.ref != 'refs/heads/release'
+        run: pnpm run package:web -o ../../dist/wgsl-analyzer-web.vsix --pre-release
+        working-directory: ./editors/code
 
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
