@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 
-import type { Config } from "./config";
+import type { Config } from "../config";
 
 import * as toolchain from "./toolchain";
 

@@ -1,6 +1,6 @@
 import * as assert from "node:assert";
 import * as vscode from "vscode";
-import { targetToExecution } from "../../src/tasks";
+import { targetToExecution } from "../../src/node/tasks";
 import type { Context } from ".";
 
 export async function getTests(context: Context) {
