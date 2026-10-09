@@ -2,7 +2,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 
-import { log, memoizeAsync } from "./utilities";
+import { log, memoizeAsync } from "../utilities";
 
 interface CompilationArtifact {
 	fileName: string;

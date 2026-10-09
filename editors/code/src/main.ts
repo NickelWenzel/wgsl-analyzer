@@ -1,10 +1,8 @@
-import * as assert from "node:assert";
 import * as vscode from "vscode";
 import * as lc from "vscode-languageclient";
 import * as commands from "./commands";
-import { type CommandFactory, Context, fetchWorkspace } from "./context";
+import { type CommandFactory, Context, fetchWorkspace, type Platform } from "./context";
 import * as diagnostics from "./diagnostics";
-import { nodePlatform } from "./node/platform";
 import { log, setContextValue } from "./utilities";
 
 const WESL_PROJECT_CONTEXT_NAME = "inWeslProject";
@@ -18,19 +16,19 @@ export async function deactivate() {
 	await setContextValue(WESL_PROJECT_CONTEXT_NAME, undefined);
 }
 
-export async function activate(
+export async function activateWith(
 	context: vscode.ExtensionContext,
+	platform: Platform,
 ): Promise<WgslAnalyzerExtensionApi> {
 	checkConflictingExtensions();
 
-	const ctx = new Context(context, createCommands(), fetchWorkspace(nodePlatform), nodePlatform);
+	const ctx = new Context(context, createCommands(), fetchWorkspace(platform), platform);
 
 	// VS Code does not show a notification when an extension fails to activate
 	// so we do it ourselves.
 	const api = await activateServer(ctx).catch((error: unknown) => {
-		assert.ok(error instanceof Error);
 		void vscode.window.showErrorMessage(
-			`Cannot activate wgsl-analyzer extension: ${error.message}`,
+			`Cannot activate wgsl-analyzer extension: ${error instanceof Error ? error.message : error}`,
 		);
 		throw error;
 	});

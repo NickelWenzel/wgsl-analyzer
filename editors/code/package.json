@@ -46,7 +46,7 @@
 		"workspace"
 	],
 	"scripts": {
-		"build-base": "esbuild ./src/main.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node --target=node22",
+		"build-base": "esbuild ./src/node/main.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node --target=node22",
 		"build": "pnpm run build-base --sourcemap",
 		"check": "pnpm exec biome check",
 		"ci": "pnpm exec biome ci",
