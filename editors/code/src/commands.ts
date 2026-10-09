@@ -1,7 +1,6 @@
 import * as path from "node:path";
 import * as vscode from "vscode";
 import * as lc from "vscode-languageclient";
-import type { LanguageClient } from "vscode-languageclient/node";
 import { HOVER_REFERENCE_COMMAND } from "./client";
 import type { Cmd, Context, InitializedContext } from "./context";
 import * as wa from "./lsp_ext";
@@ -593,7 +592,7 @@ export function reloadWorkspace(context: InitializedContext): Cmd {
 }
 
 async function showReferencesImpl(
-	client: LanguageClient | undefined,
+	client: lc.BaseLanguageClient | undefined,
 	uri: string,
 	position: lc.Position,
 	locations: lc.Location[],

@@ -1,9 +1,6 @@
-import { spawn } from "node:child_process";
-import { text } from "node:stream/consumers";
 import * as vscode from "vscode";
-import type * as lc from "vscode-languageclient/node";
-import { bootstrap } from "./bootstrap";
-import { createClient } from "./client";
+import type * as lc from "vscode-languageclient";
+import { type ClientFactory, createClient } from "./client";
 import { Config, type PlatformEnv, prepareVSCodeConfig } from "./config";
 import type { ServerStatusParameters } from "./lsp_ext";
 import * as wa from "./lsp_ext";
@@ -19,8 +16,7 @@ import {
 	type WeslEditor,
 } from "./utilities";
 
-// We only support local folders, not, for example, Live Share (`vlsl:` scheme), so do not activate if only those are in use.
-// We use "Empty" to represent these scenarios.
+// We use "Empty" when no workspace folder is one the platform supports.
 // (w-a still somewhat works with Live Share because commands are tunneled to the host)
 
 export type Workspace =
@@ -28,9 +24,31 @@ export type Workspace =
 	| { kind: "Workspace Folder" }
 	| { kind: "Detached Files"; files: vscode.TextDocument[] };
 
-export function fetchWorkspace(): Workspace {
-	const folders = (vscode.workspace.workspaceFolders || []).filter(
-		(folder) => folder.uri.scheme === "file",
+/** What differs between the native and the web extension. */
+export interface Platform {
+	readonly env: PlatformEnv;
+	readonly supportsFolder: (folder: vscode.Uri) => boolean;
+	/** Makes a server available, called on every (re)start. */
+	readonly prepareServer: (context: ServerContext) => Promise<PreparedServer>;
+}
+
+export interface ServerContext {
+	readonly extensionContext: vscode.ExtensionContext;
+	readonly config: Config;
+	readonly state: PersistentState;
+}
+
+export interface PreparedServer {
+	/** The server binary, if the server is one. */
+	readonly path?: string;
+	/** The server's version, if it is known before the server starts. */
+	readonly version?: Promise<string>;
+	readonly createClient: ClientFactory;
+}
+
+export function fetchWorkspace(platform: Platform): Workspace {
+	const folders = (vscode.workspace.workspaceFolders || []).filter((folder) =>
+		platform.supportsFolder(folder.uri),
 	);
 	const weslDocuments = vscode.workspace.textDocuments.filter((document) =>
 		isWeslDocument(document),
@@ -49,7 +67,7 @@ export type CommandFactory = {
 };
 
 export type InitializedContext = Context & {
-	readonly client: lc.LanguageClient;
+	readonly client: lc.BaseLanguageClient;
 };
 
 export class Context implements WgslAnalyzerExtensionApi {
@@ -58,7 +76,7 @@ export class Context implements WgslAnalyzerExtensionApi {
 	readonly workspace: Workspace;
 	readonly version: string;
 
-	private _client: lc.LanguageClient | undefined;
+	private _client: lc.BaseLanguageClient | undefined;
 	private _serverPath: string | undefined;
 	private traceOutputChannel: vscode.LogOutputChannel | undefined;
 	private testController: vscode.TestController | undefined;
@@ -74,6 +92,7 @@ export class Context implements WgslAnalyzerExtensionApi {
 		health: "stopped",
 	};
 	private _serverVersion: string;
+	private versionFromServerInfo = false;
 	private statusBarActiveEditorListener: Disposable;
 
 	get serverPath(): string | undefined {
@@ -100,12 +119,12 @@ export class Context implements WgslAnalyzerExtensionApi {
 		readonly extCtx: vscode.ExtensionContext,
 		commandFactories: Record<string, CommandFactory>,
 		workspace: Workspace,
-		platform: PlatformEnv,
+		private readonly platform: Platform,
 	) {
 		extCtx.subscriptions.push(this);
 		this.version = extCtx.extension.packageJSON.version ?? "<unknown>";
 		this._serverVersion = "<not running>";
-		this.config = new Config(extCtx.subscriptions, platform);
+		this.config = new Config(extCtx.subscriptions, platform.env);
 		this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
 		this.updateStatusBarVisibility(vscode.window.activeTextEditor);
 		this.statusBarActiveEditorListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
@@ -136,7 +155,7 @@ export class Context implements WgslAnalyzerExtensionApi {
 	}
 
 	async onWorkspaceFolderChanges() {
-		const workspace = fetchWorkspace();
+		const workspace = fetchWorkspace(this.platform);
 		if (workspace.kind === "Detached Files" && this.workspace.kind === "Detached Files") {
 			if (workspace.files !== this.workspace.files) {
 				if (this.client?.isRunning()) {
@@ -166,11 +185,16 @@ export class Context implements WgslAnalyzerExtensionApi {
 		}
 
 		if (!this._client) {
-			this._serverPath = await this.bootstrap();
-			text(spawn(this._serverPath, ["--version"]).stdout.setEncoding("utf-8")).then(
-				(data) => {
-					const prefix = `wgsl-analyzer `;
-					this._serverVersion = data.slice(data.startsWith(prefix) ? prefix.length : 0).trim();
+			const server = await this.platform.prepareServer({
+				extensionContext: this.extCtx,
+				config: this.config,
+				state: this.state,
+			});
+			this._serverPath = server.path;
+			this.versionFromServerInfo = server.version === undefined;
+			server.version?.then(
+				(version) => {
+					this._serverVersion = version;
 					this.refreshServerStatus();
 				},
 				(exception: unknown) => {
@@ -179,15 +203,6 @@ export class Context implements WgslAnalyzerExtensionApi {
 					this.refreshServerStatus();
 				},
 			);
-			const newEnv = Object.assign({}, process.env, this.config.serverExtraEnv);
-			const run: lc.Executable = {
-				command: this._serverPath,
-				options: { env: newEnv },
-			};
-			const serverOptions = {
-				run,
-				debug: run,
-			};
 
 			let rawInitializationOptions = vscode.workspace.getConfiguration("wgsl-analyzer");
 
@@ -204,10 +219,10 @@ export class Context implements WgslAnalyzerExtensionApi {
 			);
 
 			this._client = createClient(
+				server.createClient,
 				this.getTraceOutputChannel(),
 				this.getOutputChannel(),
 				initializationOptions,
-				serverOptions,
 				this.config,
 				this.unlinkedFiles,
 			);
@@ -243,19 +258,6 @@ export class Context implements WgslAnalyzerExtensionApi {
 		return this.traceOutputChannel;
 	}
 
-	private bootstrap(): Promise<string> {
-		return bootstrap(this.extCtx, this.config, this.state).catch((exception: unknown) => {
-			let message = "bootstrap error. ";
-
-			message += 'See the logs in "OUTPUT > wgsl-analyzer Client" (should open automatically). ';
-			message +=
-				'To enable verbose logs, click the gear icon in the "OUTPUT" tab and select "Debug".';
-
-			log.error("Bootstrap error", exception);
-			throw new Error(message);
-		});
-	}
-
 	async start() {
 		log.info("Starting language client");
 		const client = await this.getOrCreateClient();
@@ -263,13 +265,17 @@ export class Context implements WgslAnalyzerExtensionApi {
 			return;
 		}
 		await client.start();
+		if (this.versionFromServerInfo) {
+			this._serverVersion = client.initializeResult?.serverInfo?.version ?? "<unknown>";
+			this.refreshServerStatus();
+		}
 		this.updateCommands();
 		if (this.config.showSyntaxTree) {
 			this.prepareSyntaxTreeView(client);
 		}
 	}
 
-	private prepareSyntaxTreeView(client: lc.LanguageClient) {
+	private prepareSyntaxTreeView(client: lc.BaseLanguageClient) {
 		const ctxInit: InitializedContext = Object.assign({}, this, { client });
 		this._syntaxTreeProvider = new SyntaxTreeProvider(ctxInit);
 		this._syntaxTreeView = vscode.window.createTreeView("weslSyntaxTree", {

@@ -1,6 +1,8 @@
 import * as os from "node:os";
 import * as path from "node:path";
 import type { PlatformEnv } from "../config";
+import type { Platform } from "../context";
+import { prepareNodeServer } from "./server";
 
 export const nodePlatformEnv: PlatformEnv = {
 	env: (name) => process.env[name],
@@ -13,4 +15,11 @@ export const nodePlatformEnv: PlatformEnv = {
 	execPath: () => process.env["VSCODE_EXEC_PATH"] ?? process.execPath,
 	pathSeparator: path.sep, // spellchecker:disable-line
 	workspaceFolder: (folder) => folder.fsPath,
+};
+
+export const nodePlatform: Platform = {
+	env: nodePlatformEnv,
+	// We only support local folders, not, for example, Live Share (`vlsl:` scheme).
+	supportsFolder: (folder) => folder.scheme === "file",
+	prepareServer: prepareNodeServer,
 };
