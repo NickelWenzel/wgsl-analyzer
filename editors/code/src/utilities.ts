@@ -66,15 +66,23 @@ export type WeslDocument = vscode.TextDocument & ({ languageId: "wesl" } | { lan
 
 export type WeslEditor = vscode.TextEditor & { document: WeslDocument };
 
+let isServedUri = (uri: vscode.Uri): boolean => uri.scheme === "file";
+
+/**
+ * Sets which documents the server sees, `file` ones unless changed.
+ *
+ * Only allowing the workspace's scheme prevents corrupted text (particularly
+ * when using inlay hints) in diff views. Unfortunately, extensions that use diff
+ * views not always set this to something different than "file".
+ * See: https://github.com/rust-lang/rust-analyzer/issues/4608
+ */
+export function setServedUris(predicate: (uri: vscode.Uri) => boolean): void {
+	isServedUri = predicate;
+}
+
 export function isWeslDocument(document: vscode.TextDocument): document is WeslDocument {
-	// Prevent corrupted text (particularly when using inlay hints) in diff views
-	// by allowing only `file` schemes.
-	// Unfortunately, extensions that use diff views not always set this
-	// to something different than "file".
-	// See: https://github.com/rust-lang/rust-analyzer/issues/4608
 	return (
-		(document.languageId === "wgsl" || document.languageId === "wesl")
-		&& document.uri.scheme === "file"
+		(document.languageId === "wgsl" || document.languageId === "wesl") && isServedUri(document.uri)
 	);
 }
 
@@ -85,7 +93,7 @@ export function isWeslEditor(editor: vscode.TextEditor): editor is WeslEditor {
 export function isWeslTomlDocument(document: vscode.TextDocument): boolean {
 	// ideally `document.languageId` should be 'toml' but user might not have a toml extension installed
 	return (
-		document.uri.scheme === "file"
+		isServedUri(document.uri)
 		&& (document.uri.path.endsWith("/wesl.toml") || document.uri.path.endsWith("/Cargo.toml"))
 	);
 }

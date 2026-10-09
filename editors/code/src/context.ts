@@ -27,7 +27,8 @@ export type Workspace =
 /** What differs between the native and the web extension. */
 export interface Platform {
 	readonly env: PlatformEnv;
-	readonly supportsFolder: (folder: vscode.Uri) => boolean;
+	/** Whether the server sees the document or workspace folder at `uri`. */
+	readonly servesUri: (uri: vscode.Uri) => boolean;
 	/** Makes a server available, called on every (re)start. */
 	readonly prepareServer: (context: ServerContext) => Promise<PreparedServer>;
 }
@@ -48,7 +49,7 @@ export interface PreparedServer {
 
 export function fetchWorkspace(platform: Platform): Workspace {
 	const folders = (vscode.workspace.workspaceFolders || []).filter((folder) =>
-		platform.supportsFolder(folder.uri),
+		platform.servesUri(folder.uri),
 	);
 	const weslDocuments = vscode.workspace.textDocuments.filter((document) =>
 		isWeslDocument(document),

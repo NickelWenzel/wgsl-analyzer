@@ -1,52 +1,90 @@
 import * as vscode from "vscode";
 import * as lc from "vscode-languageclient/browser";
+import type { PlatformEnv } from "../config";
+import type { Platform, PreparedServer, ServerContext } from "../context";
+import { failedRequestNotification } from "../lang_client";
+import {
+	activateWith,
+	deactivate as deactivateShared,
+	type WgslAnalyzerExtensionApi,
+} from "../main";
 import { disposeServer, startServer } from "./server";
 import { UriMapping } from "./uris";
 
-let client: lc.LanguageClient | undefined;
+const WORKSPACE_ROOT = "/workspace";
 
-export async function activate(context: vscode.ExtensionContext): Promise<void> {
-	const output = vscode.window.createOutputChannel("wgsl-analyzer Language Server", { log: true });
-	context.subscriptions.push(output);
-
-	const folder = vscode.workspace.workspaceFolders?.[0];
-	const uris = new UriMapping(folder?.uri);
-	// Other schemes, like `git:` for the left side of a diff, would open a second
-	// copy of the same file on the server.
-	const schemes = folder === undefined ? [{}] : [{ scheme: folder.uri.scheme }];
-
-	client = new lc.LanguageClient(
-		"wgsl-analyzer",
-		"wgsl-analyzer Language Server",
-		() => startServer(context.extensionUri, {}, output),
-		{
-			documentSelector: schemes.flatMap((scheme) => [
-				{ ...scheme, language: "wgsl" },
-				{ ...scheme, language: "wesl" },
-			]),
-			...(folder === undefined ? {} : { workspaceFolder: folder }),
-			initializationOptions: JSON.parse(
-				JSON.stringify(vscode.workspace.getConfiguration("wgsl-analyzer")),
-			),
-			uriConverters: {
-				code2Protocol: (uri) => uris.toServer(uri),
-				protocol2Code: (value) => uris.toEditor(value),
-			},
-			diagnosticCollectionName: "wgsl-analyzer",
-			outputChannel: output,
-			markdown: { supportHtml: true },
-		},
-	);
-
-	try {
-		await client.start();
-	} catch (error) {
-		void vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
-	}
+export function activate(context: vscode.ExtensionContext): Promise<WgslAnalyzerExtensionApi> {
+	return activateWith(context, browserPlatform());
 }
 
 export async function deactivate(): Promise<void> {
-	await client?.stop();
-	client = undefined;
+	await deactivateShared();
 	disposeServer();
+}
+
+/** The server only sees the first workspace folder, mirrored at {@link WORKSPACE_ROOT}. */
+function browserPlatform(): Platform {
+	const folder = vscode.workspace.workspaceFolders?.[0];
+	const env: PlatformEnv = {
+		env: () => undefined,
+		homedir: () => "",
+		cwd: () => WORKSPACE_ROOT,
+		execPath: () => "",
+		pathSeparator: "/",
+		workspaceFolder: () => WORKSPACE_ROOT,
+	};
+	return {
+		env,
+		// Other schemes, like `git:` for the left side of a diff, would open a
+		// second copy of a workspace file on the server.
+		servesUri: (uri) => folder === undefined || uri.scheme === folder.uri.scheme,
+		prepareServer: (serverContext) => prepareServer(serverContext, folder),
+	};
+}
+
+function prepareServer(
+	{ extensionContext }: ServerContext,
+	folder: vscode.WorkspaceFolder | undefined,
+): Promise<PreparedServer> {
+	const uris = new UriMapping(folder?.uri);
+	return Promise.resolve({
+		createClient: (id, name, options) =>
+			new WaLanguageClient(
+				id,
+				name,
+				() =>
+					startServer(extensionContext.extensionUri, {}, (line) =>
+						options.outputChannel?.appendLine(line),
+					),
+				{
+					...options,
+					documentSelector: ["wgsl", "wesl"].map((language) =>
+						folder === undefined ? { language } : { scheme: folder.uri.scheme, language },
+					),
+					uriConverters: {
+						code2Protocol: (uri) => uris.toServer(uri),
+						protocol2Code: (value) => uris.toEditor(value),
+					},
+				},
+			),
+	});
+}
+
+class WaLanguageClient extends lc.LanguageClient {
+	override handleFailedRequest<T>(
+		type: lc.MessageSignature,
+		token: vscode.CancellationToken | undefined,
+		// biome-ignore lint/suspicious/noExplicitAny: Signature comes from upstream
+		error: any,
+		defaultValue: T,
+		showNotification?: boolean,
+	): T {
+		return super.handleFailedRequest(
+			type,
+			token,
+			error,
+			defaultValue,
+			failedRequestNotification(error, showNotification),
+		);
+	}
 }

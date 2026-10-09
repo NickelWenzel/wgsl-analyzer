@@ -19,7 +19,7 @@ export const nodePlatformEnv: PlatformEnv = {
 
 export const nodePlatform: Platform = {
 	env: nodePlatformEnv,
-	// We only support local folders, not, for example, Live Share (`vlsl:` scheme).
-	supportsFolder: (folder) => folder.scheme === "file",
+	// We only support local files, not, for example, Live Share (`vlsl:` scheme).
+	servesUri: (uri) => uri.scheme === "file",
 	prepareServer: prepareNodeServer,
 };

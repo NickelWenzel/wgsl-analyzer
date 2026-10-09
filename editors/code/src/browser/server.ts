@@ -15,7 +15,7 @@ let running: WgslAnalyzerServer | undefined;
 export async function startServer(
 	extensionUri: vscode.Uri,
 	files: WorkspaceFiles,
-	output: vscode.LogOutputChannel,
+	onStderr: (line: string) => void,
 ): Promise<MessageTransports> {
 	if (!crossOriginIsolated) {
 		throw new Error(
@@ -32,7 +32,7 @@ export async function startServer(
 	const server = await WgslAnalyzerServer.start({
 		worker,
 		files,
-		onStderr: (line) => output.info(line),
+		onStderr,
 		onExit: (code) => reader?.closed(code),
 	});
 	running = server;
