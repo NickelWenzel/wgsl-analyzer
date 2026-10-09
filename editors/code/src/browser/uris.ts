@@ -32,6 +32,11 @@ export class UriMapping {
 		return server;
 	}
 
+	/** The path of `uri` relative to the workspace folder, if it is inside it. */
+	workspacePath(uri: vscode.Uri): string | undefined {
+		return this.#relativePath(uri)?.slice(1) || undefined;
+	}
+
 	toEditor(value: string): vscode.Uri {
 		const detached = this.#detached.get(value);
 		if (detached !== undefined) return detached;

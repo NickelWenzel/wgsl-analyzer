@@ -10,6 +10,7 @@ import {
 } from "../main";
 import { disposeServer, startServer } from "./server";
 import { UriMapping } from "./uris";
+import { mirrorWatchedFile, readWorkspace } from "./workspace";
 
 const WORKSPACE_ROOT = "/workspace";
 
@@ -52,12 +53,23 @@ function prepareServer(
 			new WaLanguageClient(
 				id,
 				name,
-				() =>
-					startServer(extensionContext.extensionUri, {}, (line) =>
-						options.outputChannel?.appendLine(line),
-					),
+				async () => {
+					const log = (line: string) => options.outputChannel?.appendLine(line);
+					const files = folder === undefined ? {} : await readWorkspace(folder, uris, log);
+					return startServer(extensionContext.extensionUri, files, log);
+				},
 				{
 					...options,
+					middleware: {
+						...options.middleware,
+						workspace: {
+							...options.middleware?.workspace,
+							didChangeWatchedFile: mirrorWatchedFile(
+								uris,
+								options.middleware?.workspace?.didChangeWatchedFile,
+							),
+						},
+					},
 					documentSelector: ["wgsl", "wesl"].map((language) =>
 						folder === undefined ? { language } : { scheme: folder.uri.scheme, language },
 					),

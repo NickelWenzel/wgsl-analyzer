@@ -40,6 +40,16 @@ export async function startServer(
 	return { reader, writer: new ServerWriter(server) };
 }
 
+/** Mirrors a change made outside the editor into the running server's filesystem. */
+export function writeServerFile(path: string, contents: Uint8Array): void {
+	running?.writeFile(path, contents);
+}
+
+/** See {@link writeServerFile}. */
+export function deleteServerFile(path: string): void {
+	running?.deleteFile(path);
+}
+
 export function disposeServer(): void {
 	running?.dispose();
 	running = undefined;
