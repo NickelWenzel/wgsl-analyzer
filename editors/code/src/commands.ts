@@ -1,4 +1,3 @@
-import * as path from "node:path";
 import * as vscode from "vscode";
 import * as lc from "vscode-languageclient";
 import { HOVER_REFERENCE_COMMAND } from "./client";
@@ -472,7 +471,7 @@ export function viewItemTree(context: InitializedContext): Cmd {
 
 function packageGraph(context: InitializedContext, full: boolean): Cmd {
 	return async () => {
-		const nodeModulesPath = vscode.Uri.file(path.join(context.extensionPath, "node_modules"));
+		const nodeModulesPath = vscode.Uri.joinPath(context.extensionUri, "node_modules");
 
 		const panel = vscode.window.createWebviewPanel(
 			"wgsl-analyzer.package-graph",
@@ -505,7 +504,7 @@ function moduleGraph(context: InitializedContext): Cmd {
 			return;
 		}
 
-		const nodeModulesPath = vscode.Uri.file(path.join(context.extensionPath, "node_modules"));
+		const nodeModulesPath = vscode.Uri.joinPath(context.extensionUri, "node_modules");
 
 		const client = context.client;
 		const parameters = {
@@ -600,7 +599,7 @@ async function showReferencesImpl(
 	if (client) {
 		await vscode.commands.executeCommand(
 			"editor.action.showReferences",
-			vscode.Uri.parse(uri, true),
+			client.protocol2CodeConverter.asUri(uri),
 			client.protocol2CodeConverter.asPosition(position),
 			locations.map(client.protocol2CodeConverter.asLocation),
 		);
@@ -642,7 +641,7 @@ export function openDocs(context: InitializedContext): Cmd {
 		const client = context.client;
 
 		const position = editor.selection.active;
-		const textDocument = { uri: editor.document.uri.toString() };
+		const textDocument = client.code2ProtocolConverter.asTextDocumentIdentifier(editor.document);
 
 		const docLinks = await client.sendRequest(wa.openDocs, {
 			position,
@@ -680,7 +679,7 @@ export function openExternalDocs(context: InitializedContext): Cmd {
 		const client = context.client;
 
 		const position = editor.selection.active;
-		const textDocument = { uri: editor.document.uri.toString() };
+		const textDocument = client.code2ProtocolConverter.asTextDocumentIdentifier(editor.document);
 
 		const docLinks = await client.sendRequest(wa.openDocs, {
 			position,
@@ -715,7 +714,9 @@ export function runFlycheck(context: InitializedContext): Cmd {
 	return async () => {
 		const editor = context.activeWeslEditor;
 		const client = context.client;
-		const parameters = editor ? { uri: editor.document.uri.toString() } : null;
+		const parameters = editor
+			? client.code2ProtocolConverter.asTextDocumentIdentifier(editor.document)
+			: null;
 
 		await client.sendNotification(wa.runFlycheck, { textDocument: parameters });
 	};
