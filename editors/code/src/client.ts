@@ -36,7 +36,7 @@ export function createClient(
 				const response = await next(parameters, token);
 				if (response && Array.isArray(response)) {
 					return response.map((value) => {
-						return prepareVSCodeConfig(value);
+						return prepareVSCodeConfig(value, config.platform);
 					});
 				} else {
 					return response;

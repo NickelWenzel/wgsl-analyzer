@@ -1,6 +1,7 @@
 // biome-ignore-all lint/suspicious/noTemplateCurlyInString: intentional
 import * as assert from "node:assert";
 import { substituteVariablesInEnv } from "../../src/config";
+import { nodePlatformEnv } from "../../src/node/platform";
 import type { Context } from ".";
 
 export async function getTests(context: Context) {
@@ -14,7 +15,7 @@ export async function getTests(context: Context) {
 				USING_MY_VAR: "test test test",
 				MY_VAR: "test",
 			};
-			const actualEnv = substituteVariablesInEnv(envJson);
+			const actualEnv = substituteVariablesInEnv(envJson, nodePlatformEnv);
 			assert.deepStrictEqual(actualEnv, expectedEnv);
 		});
 
@@ -35,7 +36,7 @@ export async function getTests(context: Context) {
 				E_IS_ISOLATED: "test",
 				F_USES_E: "test",
 			};
-			const actualEnv = substituteVariablesInEnv(envJson);
+			const actualEnv = substituteVariablesInEnv(envJson, nodePlatformEnv);
 			assert.deepStrictEqual(actualEnv, expectedEnv);
 		});
 
@@ -48,7 +49,7 @@ export async function getTests(context: Context) {
 				USING_EXTERNAL_VAR: "test test test",
 			};
 
-			const actualEnv = substituteVariablesInEnv(envJson);
+			const actualEnv = substituteVariablesInEnv(envJson, nodePlatformEnv);
 			assert.deepStrictEqual(actualEnv, expectedEnv);
 			delete process.env["TEST_VARIABLE"];
 		});
@@ -57,7 +58,7 @@ export async function getTests(context: Context) {
 			const envJson = {
 				USING_VSCODE_VAR: "${workspaceFolderBasename}",
 			};
-			const actualEnv = substituteVariablesInEnv(envJson);
+			const actualEnv = substituteVariablesInEnv(envJson, nodePlatformEnv);
 			assert.deepStrictEqual(actualEnv["USING_VSCODE_VAR"], "code");
 		});
 	});

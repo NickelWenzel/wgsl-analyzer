@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import type * as lc from "vscode-languageclient/node";
 import { bootstrap } from "./bootstrap";
 import { createClient } from "./client";
-import { Config, prepareVSCodeConfig } from "./config";
+import { Config, type PlatformEnv, prepareVSCodeConfig } from "./config";
 import type { ServerStatusParameters } from "./lsp_ext";
 import * as wa from "./lsp_ext";
 import type { WgslAnalyzerExtensionApi } from "./main";
@@ -100,11 +100,12 @@ export class Context implements WgslAnalyzerExtensionApi {
 		readonly extCtx: vscode.ExtensionContext,
 		commandFactories: Record<string, CommandFactory>,
 		workspace: Workspace,
+		platform: PlatformEnv,
 	) {
 		extCtx.subscriptions.push(this);
 		this.version = extCtx.extension.packageJSON.version ?? "<unknown>";
 		this._serverVersion = "<not running>";
-		this.config = new Config(extCtx.subscriptions);
+		this.config = new Config(extCtx.subscriptions, platform);
 		this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
 		this.updateStatusBarVisibility(vscode.window.activeTextEditor);
 		this.statusBarActiveEditorListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
@@ -197,7 +198,10 @@ export class Context implements WgslAnalyzerExtensionApi {
 				};
 			}
 
-			const initializationOptions = prepareVSCodeConfig(rawInitializationOptions);
+			const initializationOptions = prepareVSCodeConfig(
+				rawInitializationOptions,
+				this.config.platform,
+			);
 
 			this._client = createClient(
 				this.getTraceOutputChannel(),
