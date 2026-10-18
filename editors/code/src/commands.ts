@@ -472,7 +472,7 @@ export function viewItemTree(context: InitializedContext): Cmd {
 
 function packageGraph(context: InitializedContext, full: boolean): Cmd {
 	return async () => {
-		const nodeModulesPath = vscode.Uri.joinPath(context.extensionUri, "node_modules");
+		const nodeModulesPath = vscode.Uri.joinPath(context.extensionUri, "out", "webview");
 
 		const panel = vscode.window.createWebviewPanel(
 			"wgsl-analyzer.package-graph",
@@ -505,7 +505,7 @@ function moduleGraph(context: InitializedContext): Cmd {
 			return;
 		}
 
-		const nodeModulesPath = vscode.Uri.joinPath(context.extensionUri, "node_modules");
+		const nodeModulesPath = vscode.Uri.joinPath(context.extensionUri, "out", "webview");
 
 		const client = context.client;
 		const parameters = {

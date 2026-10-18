@@ -47,20 +47,21 @@
 	],
 	"scripts": {
 		"build-base": "esbuild ./src/main.ts --bundle --outfile=out/main.js --external:vscode --format=cjs --platform=node --target=node22",
-		"build": "pnpm run build-base --sourcemap",
+		"build": "pnpm run build-webview && pnpm run build-base --sourcemap",
 		"build-web-base": "node esbuild.web.mjs",
-		"build-web": "pnpm run build-web-base --sourcemap",
+		"build-web": "pnpm run build-webview && pnpm run build-web-base --sourcemap",
+		"build-webview": "esbuild node_modules/d3/dist/d3.min.js node_modules/d3-graphviz/build/d3-graphviz.min.js node_modules/@hpcc-js/wasm/dist/graphviz.umd.js --loader:.js=copy --outbase=node_modules --outdir=out/webview --preserve-symlinks",
 		"check": "pnpm exec biome check",
 		"ci": "pnpm exec biome ci",
 		"format:check": "pnpm exec biome format",
 		"format": "pnpm exec biome format --write",
 		"fix": "pnpm exec biome format --write && pnpm exec biome check --write",
 		"lint": "pnpm exec biome lint",
-		"package": "pnpm run build-base --minify && pnpm run build-web-base --minify && vsce package --no-dependencies -o wgsl-analyzer.vsix",
+		"package": "pnpm run build-webview && pnpm run build-base --minify && pnpm run build-web-base --minify && vsce package --no-dependencies -o wgsl-analyzer.vsix",
 		"pretest": "pnpm run typecheck && pnpm run build",
 		"test": "node ./out/tests/runTests.js",
 		"typecheck": "tsc",
-		"watch": "pnpm run build-base --sourcemap --watch"
+		"watch": "pnpm run build-webview && pnpm run build-base --sourcemap --watch"
 	},
 	"dependencies": {
 		"@hpcc-js/wasm": "^2.35.3",
